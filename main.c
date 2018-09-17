@@ -1,24 +1,12 @@
 #include "main.h"
 
-void drawTriangle() {
-	glClearColor(0.4, 0.4, 0.4, 0.4);
-	glClear(GL_COLOR_BUFFER_BIT);
-
-	glColor3f(1.0, 1.0, 1.0);
-	glOrtho(-1.0, 1.0, -1.0, 1.0, -1.0, 1.0);
-
-		//glBegin(GL_TRIANGLES);
-		glBegin(GL_LINES);
-			glVertex3f(-0.7, 0.7, 0);
-			//glVertex3f(0.7, 0.7, 0);
-			/*glVertex3f(0.0, -1.0, 0.0);*/
-			glVertex3f(corner[0], corner[1], corner[2]);
-		glEnd();
-
-	glFlush();
-}
-
 int main(int argc, char **argv) {
+
+	player1.coord[0] = 0.0f;
+   player1.coord[1] = 0.0f;
+	player1.rot = 0.0f;
+	player1.radius = 0.1f;
+	player1.line = 0.2f;
 
 	glutInit(&argc, argv);
 	glutInitDisplayMode(GLUT_SINGLE);
@@ -42,10 +30,10 @@ void mainloop() {
 		if(tDown && gDown) break;
 
 		if(tDown) {
-			corner[1] += 0.001f;
+			player1.coord[1] += 0.001f;
 		}
 		if(gDown) {
-			corner[1] -= 0.001f;
+			player1.coord[1] -= 0.001f;
 		}
 	} while(0);
 	//horizontal
@@ -53,15 +41,46 @@ void mainloop() {
 		if(hDown && fDown) break;
 
 		if(hDown) {
-			corner[0] += 0.001f;
+			player1.coord[0] += 0.001f;
 		}
 		if(fDown) {
-			corner[0] -= 0.001f;
+			player1.coord[0] -= 0.001f;
 		}
 	} while(0);
 
 	glutPostRedisplay();
 }
+
+void drawTriangle() {
+	glClearColor(0,0,0,0.4);
+	glClear(GL_COLOR_BUFFER_BIT);
+
+	glColor3f(1.0, 1.0, 1.0);
+	glOrtho(-1.0, 1.0, -1.0, 1.0, -1.0, 1.0);
+
+		/*glBegin(GL_LINES);
+			glVertex3f(-0.7, 0.7, 0);
+			glVertex3f(corner[0], corner[1], corner[2]);
+		glEnd();
+
+
+		glBegin(GL_TRIANGLES);
+			glVertex3f(-0.7, 0.7, 0);
+			glVertex3f(0.0, -1.0, 0.0);
+			glVertex3f(corner[0], corner[1], corner[2]);
+		glEnd();*/
+
+		//draw player circle
+		glBegin(GL_POLYGON);
+			for(double i = 0; i < 2 * PI; i += PI / 20) {
+				glVertex3f(cos(i) * player1.radius + player1.coord[0], sin(i) * player1.radius + player1.coord[1], 0);
+			}
+		glEnd();
+		//draw player line
+
+	glFlush();
+}
+
 
 void keyDown(unsigned char key, int x, int y) {
 	switch(key) {

@@ -13,7 +13,20 @@ int fDown = 0;
 int hDown = 0;
 
 //x, y, z coordinate of one of the triangle corners
-float corner[] = {0.0f, -0.5f, 0.0f};
+//float corner[] = {0.0f, -0.5f, 0.0f};
+
+double PI = 3.14159265359;
+
+typedef struct Player {
+	float coord[2];
+	float rot;
+
+	float radius;//radius of player circle
+	float line;//length of line sticking out
+};
+
+struct Player player1;
+
 
 // from opengl hello world tutorial
 void drawTriangle();

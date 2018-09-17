@@ -11,6 +11,7 @@ target_link_libraries(engine
 	${CURSES_LIBRARIES}
 	${OPENGL_gl_LIBRARY}
 	${GLUT_LIBRARIES}
+	m
 )
 
 include_directories(
