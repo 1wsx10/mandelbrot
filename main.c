@@ -30,10 +30,12 @@ void mainloop() {
 		if(tDown && gDown) break;
 
 		if(tDown) {
-			player1.coord[1] += 0.001f;
+			player1.coord[0] += sin(player1.rot) * 0.001f;
+			player1.coord[1] += cos(player1.rot) * 0.001f;
 		}
 		if(gDown) {
-			player1.coord[1] -= 0.001f;
+			player1.coord[0] -= sin(player1.rot) * 0.001f;
+			player1.coord[1] -= cos(player1.rot) * 0.001f;
 		}
 	} while(0);
 	//horizontal
@@ -41,11 +43,19 @@ void mainloop() {
 		if(hDown && fDown) break;
 
 		if(hDown) {
-			player1.coord[0] += 0.001f;
+			player1.rot += 0.001f;
 		}
 		if(fDown) {
-			player1.coord[0] -= 0.001f;
+			player1.rot -= 0.001f;
 		}
+
+		while(player1.rot > 2 * PI) {
+			player1.rot -= 2 * PI;
+		}
+		while(player1.rot < 0) {
+			player1.rot += 2 * PI;
+		}
+
 	} while(0);
 
 	glutPostRedisplay();
@@ -71,14 +81,23 @@ void drawTriangle() {
 		glEnd();*/
 
 		//draw player circle
-		glBegin(GL_POLYGON);
-			for(double i = 0; i < 2 * PI; i += PI / 20) {
-				glVertex3f(cos(i) * player1.radius + player1.coord[0], sin(i) * player1.radius + player1.coord[1], 0);
-			}
-		glEnd();
+		drawCircle(player1.coord[0], player1.coord[1], player1.radius, 10);
 		//draw player line
+		glBegin(GL_LINES);
+			glVertex3f(player1.coord[0], player1.coord[1], 0);
+			glVertex3f(player1.coord[0] + sin(player1.rot) * player1.line, player1.coord[1] + cos(player1.rot) * player1.line, 0);
+		glEnd();
 
 	glFlush();
+}
+
+void drawCircle(float x, float y, float rad, int num_verts) {
+
+	glBegin(GL_POLYGON);
+		for(double i = 0; i < 2 * PI; i += 2 * PI / num_verts) {
+			glVertex3f(cos(i) * rad + x, sin(i) * rad + y, 0);
+		}
+	glEnd();
 }
 
 

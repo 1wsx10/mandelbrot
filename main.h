@@ -30,8 +30,12 @@ struct Player player1;
 
 // from opengl hello world tutorial
 void drawTriangle();
+
 void keyDown(unsigned char key, int x, int y);
 void keyUp(unsigned char key, int x, int y);
-void mainloop();
+void drawCircle(float x, float y, float rad, int num_verts);
 
+//main loop, logic of program
+void mainloop();
+//entrypoint, init and start opengl
 int main();
