@@ -5,7 +5,14 @@ find_package(OpenGL REQUIRED)
 find_package(GLUT REQUIRED)
 find_package(Curses REQUIRED)
 
-add_executable(engine main.c)
+add_executable(engine
+	main.c
+	draw.c
+	keyboard.c
+	loop.c
+	player.c
+	constants.c
+)
 
 target_link_libraries(engine
 	${CURSES_LIBRARIES}
