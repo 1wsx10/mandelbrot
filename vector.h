@@ -5,9 +5,9 @@
 #include <stdio.h>
 
 typedef struct Vector3d {
-	double a;
-	double b;
-	double c;
+	double x;
+	double y;
+	double z;
 } v3d;
 
 // add a and b

@@ -1,25 +1,25 @@
 #include "vector.h"
 
 void add_v3d(v3d a, v3d b, v3d *ret) {
-	ret->a = a.a + b.a;
-	ret->b = a.b + b.b;
-	ret->c = a.c + b.c;
+	ret->x = a.x + b.x;
+	ret->y = a.y + b.y;
+	ret->z = a.z + b.z;
 }
 
 void sub_v3d(v3d a, v3d b, v3d *ret) {
-	ret->a = a.a - b.a;
-	ret->b = a.b - b.b;
-	ret->c = a.c - b.c;
+	ret->x = a.x - b.x;
+	ret->y = a.y - b.y;
+	ret->z = a.z - b.z;
 }
 
 void mul_v3d(v3d a, double b, v3d *ret) {
-	ret->a = a.a * b;
-	ret->b = a.b * b;
-	ret->c = a.c * b;
+	ret->x = a.x * b;
+	ret->y = a.y * b;
+	ret->z = a.z * b;
 }
 
 double dot_v3d(v3d a, v3d b) {
-	return a.a * b.a + a.b * b.b + a.c * b.c;
+	return a.x * b.x + a.y * b.y + a.z * b.z;
 }
 
 double det(double a, double b, double c, double d) {
@@ -27,13 +27,13 @@ double det(double a, double b, double c, double d) {
 }
 
 void cro_v3d(v3d a, v3d b, v3d *ret) {
-	double i = det(a.b, a.c, b.b, b.c);
-	double j = -1 * det(a.a, a.c, b.a, b.c);
-	double k = det(a.a, a.b, b.a, b.b);
+	double i = det(a.y, a.z, b.y, b.z);
+	double j = det(a.x, a.z, b.x, b.z) * -1;
+	double k = det(a.x, a.y, b.x, b.y);
 
-	ret->a = i;
-	ret->b = j;
-	ret->c = k;
+	ret->x = i;
+	ret->y = j;
+	ret->z = k;
 }
 
 double len_v3d(v3d a) {
@@ -41,15 +41,15 @@ double len_v3d(v3d a) {
 }
 
 double lsq_v3d(v3d a) {
-	return a.a * a.a + a.b * a.b + a.c * a.c;
+	return a.x * a.x + a.y * a.y + a.z * a.z;
 }
 
 void nrm_v3d(v3d a, v3d *ret) {
 	double len = len_v3d(a);
 	
-	ret->a = a.a / len;
-	ret->b = a.b / len;
-	ret->c = a.c / len;
+	ret->x = a.x / len;
+	ret->y = a.y / len;
+	ret->z = a.z / len;
 }
 
 void prj_v3d(v3d a, v3d b, v3d *ret) {
@@ -71,8 +71,8 @@ void rej_v3d(v3d a, v3d b, v3d *ret) {
 
 int test_v3d() {
 	v3d a, b;
-	a.a = 5.1, a.b = 2.7, a.c = 3;
-	b.a = 3, b.b = 7, b.c = 4.2;
+	a.x = 5.1, a.y = 2.7, a.z = 3;
+	b.x = 3, b.y = 7, b.z = 4.2;
 
 	double scalar = 2.34;
 	double answer;
@@ -81,25 +81,25 @@ int test_v3d() {
 
 	add_v3d(a, b, &ret);
 
-	if(!(EQ_DOUBLE(ret.a, 8.1) && EQ_DOUBLE(ret.b, 9.7) && EQ_DOUBLE(ret.c, 7.2))) {
+	if(!(EQ_DOUBLE(ret.x, 8.1) && EQ_DOUBLE(ret.y, 9.7) && EQ_DOUBLE(ret.z, 7.2))) {
 		fprintf(stderr, "v3d add\nFILE: %s\nLINE: %d\nFUNCTION: %s\n", __FILE__, __LINE__, __FUNCTION__);
-		fprintf(stderr, "a: %f\tb: %f\tc: %f\n", ret.a, ret.b, ret.c);
+		fprintf(stderr, "a: %f\tb: %f\tc: %f\n", ret.x, ret.y, ret.z);
 		return 0;
 	}
 
 	sub_v3d(a, b, &ret);
 
-	if(!(EQ_DOUBLE(ret.a, 2.1) && EQ_DOUBLE(ret.b, -4.3) && EQ_DOUBLE(ret.c, -1.2))) {
+	if(!(EQ_DOUBLE(ret.x, 2.1) && EQ_DOUBLE(ret.y, -4.3) && EQ_DOUBLE(ret.z, -1.2))) {
 		fprintf(stderr, "v3d sub\nFILE: %s\nLINE: %d\nFUNCTION: %s", __FILE__, __LINE__, __FUNCTION__);
-		fprintf(stderr, "a: %f\tb: %f\tc: %f\n", ret.a, ret.b, ret.c);
+		fprintf(stderr, "a: %f\tb: %f\tc: %f\n", ret.x, ret.y, ret.z);
 		return 0;
 	}
 
 	mul_v3d(a, scalar, &ret);
 
-	if(!(EQ_DOUBLE(ret.a, 11.934) && EQ_DOUBLE(ret.b, 6.318) && EQ_DOUBLE(ret.c, 7.02))) {
+	if(!(EQ_DOUBLE(ret.x, 11.934) && EQ_DOUBLE(ret.y, 6.318) && EQ_DOUBLE(ret.z, 7.02))) {
 		fprintf(stderr, "v3d mul\nFILE: %s\nLINE: %d\nFUNCTION: %s", __FILE__, __LINE__, __FUNCTION__);
-		fprintf(stderr, "a: %f\tb: %f\tc: %f\n", ret.a, ret.b, ret.c);
+		fprintf(stderr, "a: %f\tb: %f\tc: %f\n", ret.x, ret.y, ret.z);
 		return 0;
 	}
 
@@ -113,9 +113,9 @@ int test_v3d() {
 
 	cro_v3d(a, b, &ret);
 
-	if(!(EQ_DOUBLE(ret.a, -9.66) && EQ_DOUBLE(ret.b, -12.42) && EQ_DOUBLE(ret.c, 27.6))) {
+	if(!(EQ_DOUBLE(ret.x, -9.66) && EQ_DOUBLE(ret.y, -12.42) && EQ_DOUBLE(ret.z, 27.6))) {
 		fprintf(stderr, "v3d cro\nFILE: %s\nLINE: %d\nFUNCTION: %s", __FILE__, __LINE__, __FUNCTION__);
-		fprintf(stderr, "a: %f\tb: %f\tc: %f\n", ret.a, ret.b, ret.c);
+		fprintf(stderr, "a: %f\tb: %f\tc: %f\n", ret.x, ret.y, ret.z);
 		return 0;
 	}
 
@@ -137,25 +137,25 @@ int test_v3d() {
 
 	nrm_v3d(a, &ret);
 
-	if(!(EQ_DOUBLE(ret.a, 0.784151526) && EQ_DOUBLE(ret.b, 0.415139043) && EQ_DOUBLE(ret.c, 0.461265604))) {
+	if(!(EQ_DOUBLE(ret.x, 0.784151526) && EQ_DOUBLE(ret.y, 0.415139043) && EQ_DOUBLE(ret.z, 0.461265604))) {
 		fprintf(stderr, "v3d normalized\nFILE: %s\nLINE: %d\nFUNCTION: %s", __FILE__, __LINE__, __FUNCTION__);
-		fprintf(stderr, "a: %f\tb: %f\tc: %f\n", ret.a, ret.b, ret.c);
+		fprintf(stderr, "a: %f\tb: %f\tc: %f\n", ret.x, ret.y, ret.z);
 		return 0;
 	}
 
 	prj_v3d(a, b, &ret);
 
-	if(!(EQ_DOUBLE(ret.a, 1.856160761) && EQ_DOUBLE(ret.b, 4.331041776) && EQ_DOUBLE(ret.c, 2.598625066))) {
+	if(!(EQ_DOUBLE(ret.x, 1.856160761) && EQ_DOUBLE(ret.y, 4.331041776) && EQ_DOUBLE(ret.z, 2.598625066))) {
 		fprintf(stderr, "v3d projection\nFILE: %s\nLINE: %d\nFUNCTION: %s", __FILE__, __LINE__, __FUNCTION__);
-		fprintf(stderr, "a: %f\tb: %f\tc: %f\n", ret.a, ret.b, ret.c);
+		fprintf(stderr, "a: %f\tb: %f\tc: %f\n", ret.x, ret.y, ret.z);
 		return 0;
 	}
 
 	rej_v3d(a, b, &ret);
 
-	if(!(EQ_DOUBLE(ret.a, 5.1 - 1.856160761) && EQ_DOUBLE(ret.b, 2.7 - 4.331041776) && EQ_DOUBLE(ret.c, 3 - 2.598625066))) {
+	if(!(EQ_DOUBLE(ret.x, 5.1 - 1.856160761) && EQ_DOUBLE(ret.y, 2.7 - 4.331041776) && EQ_DOUBLE(ret.z, 3 - 2.598625066))) {
 		fprintf(stderr, "v3d projection\nFILE: %s\nLINE: %d\nFUNCTION: %s", __FILE__, __LINE__, __FUNCTION__);
-		fprintf(stderr, "a: %f\tb: %f\tc: %f\n", ret.a, ret.b, ret.c);
+		fprintf(stderr, "a: %f\tb: %f\tc: %f\n", ret.x, ret.y, ret.z);
 		return 0;
 	}
 
