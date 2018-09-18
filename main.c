@@ -2,6 +2,8 @@
 
 int main(int argc, char **argv) {
 
+	test_v3d();
+
 	player1.coord[0] = 0.0f;
 	player1.coord[1] = 0.0f;
 	player1.rot = 0.0f;

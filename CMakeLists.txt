@@ -12,6 +12,7 @@ add_executable(engine
 	loop.c
 	player.c
 	constants.c
+	vector.c
 )
 
 target_link_libraries(engine

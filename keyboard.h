@@ -1,5 +1,8 @@
-#ifndef KEYBOARD
-#define KEYBOARD
+#ifndef KEYBOARD_H
+#define KEYBOARD_H
+
+#include <GL/freeglut.h>
+#include <GL/gl.h>
 
 extern int tDown;
 extern int gDown;
