@@ -4,8 +4,8 @@ int main(int argc, char **argv) {
 
 	test_v3d();
 
-	player1.coord[0] = 0.0f;
-	player1.coord[1] = 0.0f;
+	player1.coord.x = 0.0f;
+	player1.coord.z = 0.0f;
 	player1.rot = 0.0f;
 	player1.radius = 0.1f;
 	player1.line = 0.2f;

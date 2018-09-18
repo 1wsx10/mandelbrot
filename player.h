@@ -1,8 +1,10 @@
 #ifndef PLAYER
 #define PLAYER
 
+#include "vector.h"
+
 struct Player {
-	float coord[2];
+	v3d coord;
 	float rot;
 
 	float radius;//radius of player circle

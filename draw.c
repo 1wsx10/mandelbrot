@@ -20,11 +20,11 @@ void draw() {
 		glEnd();*/
 
 		//draw player circle
-		drawCircle(player1.coord[0], player1.coord[1], player1.radius, 10);
+		drawCircle(player1.coord.x, player1.coord.z, player1.radius, 10);
 		//draw player line
 		glBegin(GL_LINES);
-			glVertex3f(player1.coord[0], player1.coord[1], 0);
-			glVertex3f(player1.coord[0] + sin(player1.rot) * player1.line, player1.coord[1] + cos(player1.rot) * player1.line, 0);
+			glVertex3f(player1.coord.x, player1.coord.z, 0);
+			glVertex3f(player1.coord.x + sinf(player1.rot) * player1.line, player1.coord.z + cosf(player1.rot) * player1.line, 0);
 		glEnd();
 
 	glFlush();
@@ -33,8 +33,10 @@ void draw() {
 void drawCircle(float x, float y, float rad, int num_verts) {
 
 	glBegin(GL_POLYGON);
-		for(double i = 0; i < 2 * PI; i += 2 * PI / num_verts) {
-			glVertex3f(cos(i) * rad + x, sin(i) * rad + y, 0);
+		double angle;
+		for(int i = 0; i < num_verts; i++) {
+			angle = i * 2 * PI / num_verts;
+			glVertex3f(cos(angle) * rad + x, sin(angle) * rad + y, 0);
 		}
 	glEnd();
 }
