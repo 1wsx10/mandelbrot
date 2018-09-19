@@ -46,10 +46,18 @@ double lsq_v3d(v3d a) {
 
 void nrm_v3d(v3d a, v3d *ret) {
 	double len = len_v3d(a);
-	
+
 	ret->x = a.x / len;
 	ret->y = a.y / len;
 	ret->z = a.z / len;
+}
+
+void nrm_c_v3d(v3d *a) {
+	double len = len_v3d(*a);
+
+	a->x = a->x / len;
+	a->y = a->y / len;
+	a->z = a->z / len;
 }
 
 void prj_v3d(v3d a, v3d b, v3d *ret) {
@@ -139,6 +147,15 @@ int test_v3d() {
 
 	if(!(EQ_DOUBLE(ret.x, 0.784151526) && EQ_DOUBLE(ret.y, 0.415139043) && EQ_DOUBLE(ret.z, 0.461265604))) {
 		fprintf(stderr, "v3d normalized\nFILE: %s\nLINE: %d\nFUNCTION: %s", __FILE__, __LINE__, __FUNCTION__);
+		fprintf(stderr, "a: %f\tb: %f\tc: %f\n", ret.x, ret.y, ret.z);
+		return 0;
+	}
+
+	ret = a;
+	nrm_c_v3d(&ret);
+
+	if(!(EQ_DOUBLE(ret.x, 0.784151526) && EQ_DOUBLE(ret.y, 0.415139043) && EQ_DOUBLE(ret.z, 0.461265604))) {
+		fprintf(stderr, "v3d normalized in place\nFILE: %s\nLINE: %d\nFUNCTION: %s", __FILE__, __LINE__, __FUNCTION__);
 		fprintf(stderr, "a: %f\tb: %f\tc: %f\n", ret.x, ret.y, ret.z);
 		return 0;
 	}

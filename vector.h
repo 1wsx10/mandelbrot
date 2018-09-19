@@ -28,6 +28,8 @@ double len_v3d(v3d a);
 double lsq_v3d(v3d a);
 // normalize a
 void nrm_v3d(v3d a, v3d *ret);
+// modify a and normalize it
+void nrm_curr_v3d(v3d *a);
 
 // project a onto b
 void prj_v3d(v3d a, v3d b, v3d *ret);
