@@ -43,6 +43,7 @@ void mul_comsc(com *a, double b, com *ret);
 void sqr_com(com *a, com *ret);
 double magnitude_squared_com(com *a);
 
+void test_com();
 void print_com(com *a);
 
 
