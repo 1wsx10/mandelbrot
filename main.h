@@ -7,6 +7,8 @@
 #include "loop.h"
 #include "player.h"
 #include "vector.h"
+#include "matrixd.h"
+#include "complex.h"
 
 #include <GL/freeglut.h>
 #include <GL/gl.h>

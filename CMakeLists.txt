@@ -13,17 +13,25 @@ add_executable(engine
 	player.c
 	constants.c
 	vector.c
+	matrixd.c
+	complex.c
+)
+
+set(CMAKE_CXX_STANDARD_11)
+set(CMAKE_CXX_FLAGS
+	"-Wall -pedantic -g"
+)
+set(CMAKE_C_FLAGS
+	"-Wall -pedantic -g"
 )
 
 target_link_libraries(engine
-	${CURSES_LIBRARIES}
 	${OPENGL_gl_LIBRARY}
 	${GLUT_LIBRARIES}
 	m
 )
 
 include_directories(
-	${CURSES_INCLUDE_DIR}
 	${OPENGL_INCLUDE_DIR}
 )
 
