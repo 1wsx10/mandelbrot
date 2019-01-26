@@ -9,9 +9,11 @@
 #include "vector.h"
 #include "matrixd.h"
 #include "complex.h"
+#include "mandle.h"
 
 #include <GL/freeglut.h>
 #include <GL/gl.h>
+#include <GL/glu.h>
 #include <fcntl.h>
 #include <math.h>
 #include <stdio.h>

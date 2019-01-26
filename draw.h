@@ -7,6 +7,8 @@
 
 #include "player.h"
 #include "constants.h"
+#include "complex.h"
+#include "mandle.h"
 
 // draw everything
 extern void draw();

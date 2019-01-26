@@ -15,6 +15,7 @@ add_executable(engine
 	vector.c
 	matrixd.c
 	complex.c
+	mandle.c
 )
 
 set(CMAKE_CXX_STANDARD_11)
@@ -28,6 +29,7 @@ set(CMAKE_C_FLAGS
 target_link_libraries(engine
 	${OPENGL_gl_LIBRARY}
 	${GLUT_LIBRARIES}
+	GLU
 	m
 )
 
