@@ -11,8 +11,8 @@
 #include <math.h>
 
 typedef struct Complex {
-	double r;
-	double i;
+	long double r;
+	long double i;
 } com;
 
 #if 0
@@ -43,8 +43,10 @@ void mul_comsc(com *a, double b, com *ret);
 void sqr_com(com *a, com *ret);
 double magnitude_squared_com(com *a);
 
-void test_com();
+void test_com_heap();
+void test_com_stack();
 void print_com(com *a);
+void println_com(com *a);
 
 
 #endif
