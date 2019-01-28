@@ -11,9 +11,16 @@ void make_colour(int val, int depth, RGBT *ret) {
 	ret->b = (int)(255 * sin(val_tx * PI * 4.0/3));
 }
 
+typedef struct mandle_controls {
+	double zoom;
+	double depth;
+	int test;
+	long double cpanI;
+	long double cpanR;
+	int is_running;
+} MANDLE_CONTROLS;
 
-
-int main(int argc, char **argv) {
+void display(MANDLE_CONTROLS *controls, double *test) {
 	FBINFO *fb = init();
 	com current_pos;
 
@@ -30,7 +37,12 @@ int main(int argc, char **argv) {
 	int x_long = fb->vinfo.xres > fb->vinfo.yres;
 	int aspect_diff = ABS(MAX(fb->vinfo.xres, fb->vinfo.yres) - MIN(fb->vinfo.xres, fb->vinfo.yres));
 
-	int depth = 1000;
+	int depth;
+	int zoom;
+	int cpanR;
+	int cpanI;
+
+	//int depth = 1000;
 	//int depth = 50;
 	//long double cpanR = 0;
 	//long double cpanI = 0;
@@ -61,9 +73,9 @@ int main(int argc, char **argv) {
 	//long double cpanR = -1.62917;
 	//long double cpanI = -0.0203968;
 	//double zoom = 100000;
-	double zoom = 1000;
-	long double cpanR = -0.761574;
-	long double cpanI = -0.0847596;
+	//double zoom = 1000;
+	//long double cpanR = -0.761574;
+	//long double cpanI = -0.0847596;
 	
 
 
@@ -86,29 +98,132 @@ int main(int argc, char **argv) {
 	pix.y = &py;
 	pix.colour = &white;
 
-	for(int i = 0; i < fb->vinfo.xres; i++) {
-		current_pos.r = ((i+ ppanx + -1 * (x_long ? aspect_diff/2 : 0)) * (4/zoom) / dimension) - (2/zoom) + cpanR;
+	while(controls->is_running) {
+		depth = controls->depth;
+		zoom = controls->zoom;
+		cpanR = controls->cpanR;
+		cpanI = controls->cpanI;
 
-		for(int j = 0; j < fb->vinfo.yres; j++) {
-			/* translate (0,0) (xres,yres) into (-2,2i) (2,-2i) */
-			current_pos.i = ((j + ppany + -1 * (x_long ? 0 : aspect_diff/2 )) * (4/zoom) / dimension) - (2/zoom) + cpanI;
+		if(1) {
+			printf("zoom: %d\n\rdepth: %d\n\rR: %1.5f\n\rI: %1.5f\n\r", zoom, depth, cpanR, cpanI);
+			printf("controls->test: %d\n\r", controls->test);
+			printf("test: %1.2f\n\r", *test);
+			printf("controlsptr: %p\n\r", &controls->cpanR);
+			sleep(1);
+		} else {
 
-			int result = itterate(&current_pos, depth);
-			if(result >= 0) {
-				/* outside the set */
-				*pix.x = i;
-				*pix.y = j;
-				make_colour(result, depth, &white);
-				/*white.r = result;
-				white.g = result;
-				white.b = result;*/
+			for(int i = 0; i < fb->vinfo.xres; i++) {
 
-				draw(fb, &pix);
+				/* translate (0,0) (xres,yres) into (-2,2i) (2,-2i) for x coordinate */
+				current_pos.r = ((i+ ppanx + -1 * (x_long ? aspect_diff/2 : 0)) * (4/zoom) / dimension) - (2/zoom) + cpanR;
+
+				for(int j = 0; j < fb->vinfo.yres; j++) {
+					/* translate (0,0) (xres,yres) into (-2,2i) (2,-2i) for y coordinate */
+					current_pos.i = ((j + ppany + -1 * (x_long ? 0 : aspect_diff/2 )) * (4/zoom) / dimension) - (2/zoom) + cpanI;
+
+					int result = itterate(&current_pos, depth);
+					if(result >= 0) {
+						/* outside the set */
+						*pix.x = i;
+						*pix.y = j;
+						make_colour(result, depth, &white);
+						/*white.r = result;
+						white.g = result;
+						white.b = result;*/
+
+						draw(fb, &pix);
+					}
+				}
 			}
 		}
 	}
 	
 	end(fb);
+}
+
+int main(int argc, char **argv) {
+	MANDLE_CONTROLS * controls = mmap(NULL, sizeof(*controls),
+		   	PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+	double * test = mmap(NULL, sizeof(*test),
+		   	PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+
+	*test = 0;
+	controls->is_running = 1;
+	controls->depth = 50;
+	controls->zoom = 1;
+	controls->test = 0;
+	controls->cpanR = 0;
+	controls->cpanI = 0;
+
+
+	int child_pid = fork();
+	if(!child_pid) {
+		// child
+		display(controls, test);
+		return EXIT_SUCCESS;
+	}
+	// parent from here on out
+
+	// init ncurses and choose settings
+	initscr();
+	timeout(-1);
+	// stdscr: the default window
+	// 0: block until input is available, rather than returning ERR on no input
+	cbreak();
+	// makes input return immediately on every char, rather than buffering a line
+	noecho();
+	// stops characters printing
+	nodelay(stdscr, 0);
+	// hide the cursor
+	curs_set(0);
+
+	while(controls->is_running) {
+
+		int key = getch();
+		//printf("KEY: %c\t #: %d\n\r", (char)key, key);
+
+
+		switch(key) {
+			case KEY_UP:
+			case (int)'w':
+				controls->cpanI += 1;
+				printf("increasing I: %1.5f\t zoom: %1.2f\n\r", controls->cpanI, controls->zoom);
+				*test += 1;
+				controls->test += 1;
+				printf("increasing test: %1.2f\n\r", *test);
+				printf("controlsptr: %p\n\r", &controls->cpanR);
+				break;
+			case KEY_DOWN:
+			case (int)'s':
+				printf("decreasing I\n\r");
+				controls->cpanI -= controls->zoom;
+				break;
+			case KEY_LEFT:
+			case (int)'a':
+				printf("increasing R\n\r");
+				controls->cpanR += controls->zoom;
+				break;
+			case KEY_RIGHT:
+			case (int)'d':
+				printf("decreasing R\n\r");
+				controls->cpanR -= controls->zoom;
+				break;
+
+
+			case KEY_EXIT:
+				controls->is_running = 0;
+				break;
+		}
+	}
+
+	//ncurses
+	endwin();
+
+	// undo memory map
+	munmap(controls, sizeof(*controls));
+	return EXIT_SUCCESS;
+
+
 
 
 #if 0
@@ -127,8 +242,5 @@ int main(int argc, char **argv) {
 	
 	print_md(test);
 #endif
-
-	return EXIT_SUCCESS;
-
 }
 

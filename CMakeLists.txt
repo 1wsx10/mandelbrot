@@ -3,7 +3,7 @@ project (mandlebrot)
 
 #find_package(OpenGL REQUIRED)
 #find_package(GLUT REQUIRED)
-#find_package(Curses REQUIRED)
+find_package(Curses REQUIRED)
 
 add_executable(draw
 	main.c
@@ -27,12 +27,14 @@ target_link_libraries(draw
 	#${OPENGL_gl_LIBRARY}
 	#${GLUT_LIBRARIES}
 	#GLU
+	${CURSES_LIBRARIES}
 	m
 )
 
 include_directories(
 	#${OPENGL_INCLUDE_DIR}
 	write_screen
+	${CURSES_INCLUDE_DIR}
 )
 
 set(ALL_LIBS

@@ -6,6 +6,7 @@
 #include "matrixd.h"
 #include "complex.h"
 #include "mandle.h"
+
 #include "lib/write_screen/drawlib.h"
 
 #include <fcntl.h>
@@ -13,6 +14,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <sys/types.h>
+
+#include <curses.h>
 
 
 
