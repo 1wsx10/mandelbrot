@@ -25,7 +25,7 @@ typedef struct Complex {
 #endif
 
 // allocates the complex number on the heap
-com * create_com(double real, double imag);
+com * create_com(long double real, long double imag);
 //you can just use free();
 //void free_com(com *ret);
 
@@ -37,11 +37,11 @@ void sub_com(com *a, com *b, com *ret);
 // multiply complex with complex
 void mul_comcom(com *a, com *b, com *ret);
 // multiply complex with scalar
-void mul_comsc(com *a, double b, com *ret);
+void mul_comsc(com *a, long double b, com *ret);
 
 // square the complex number
 void sqr_com(com *a, com *ret);
-double magnitude_squared_com(com *a);
+long double magnitude_squared_com(com *a);
 
 void test_com_heap();
 void test_com_stack();

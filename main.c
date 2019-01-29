@@ -12,7 +12,7 @@ void make_colour(int val, int depth, RGBT *ret) {
 }
 
 
-void display(int *is_running, int *depth, double *zoom, long double *cpanR, long double *cpanI) {
+void display(int *is_running, int *depth, long double *zoom, long double *cpanR, long double *cpanI) {
 	FBINFO *fb = init();
 	com current_pos;
 
@@ -124,7 +124,7 @@ void display(int *is_running, int *depth, double *zoom, long double *cpanR, long
 int main(int argc, char **argv) {
 	int *is_running = mmap(NULL, sizeof(*is_running), PROT_READ|PROT_WRITE, MAP_SHARED|MAP_ANONYMOUS, -1, 0);
 	int *depth = mmap(NULL, sizeof(*depth), PROT_READ|PROT_WRITE, MAP_SHARED|MAP_ANONYMOUS, -1, 0);
-	double *zoom = mmap(NULL, sizeof(*zoom), PROT_READ|PROT_WRITE, MAP_SHARED|MAP_ANONYMOUS, -1, 0);
+	long double *zoom = mmap(NULL, sizeof(*zoom), PROT_READ|PROT_WRITE, MAP_SHARED|MAP_ANONYMOUS, -1, 0);
 	long double *cpanR = mmap(NULL, sizeof(*cpanR), PROT_READ|PROT_WRITE, MAP_SHARED|MAP_ANONYMOUS, -1, 0);
 	long double *cpanI = mmap(NULL, sizeof(*cpanI), PROT_READ|PROT_WRITE, MAP_SHARED|MAP_ANONYMOUS, -1, 0);
 
@@ -182,10 +182,10 @@ int main(int argc, char **argv) {
 				break;
 
 			case (int)'p':
-				*depth *= 1.5f;
+				*depth *= 1.1f;
 				break;
 			case (int)'o':
-				*depth /= 1.5f;
+				*depth /= 1.1f;
 				break;
 
 
