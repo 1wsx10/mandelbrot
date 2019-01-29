@@ -18,7 +18,13 @@
 
 #include <curses.h>
 
-
+typedef struct mandle_controls {
+	char is_running;
+	int depth;
+	long double zoom;
+	long double R;
+	long double I;
+} MANDLE_CONTROLS;
 
 //entrypoint, init and start opengl
 extern int main();
