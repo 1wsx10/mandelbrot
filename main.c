@@ -11,20 +11,116 @@ void make_colour(int val, int depth, RGBT *ret) {
 	ret->b = (int)(255 * sin(val_tx * PI * 4.0/3));
 }
 
+FBINFO *thread_fb;
+struct tdraw_data {
+	pthread_t tid;
+	int id;
+	int total;
+	MANDLE_CONTROLS *cont;
+};
+void *tdraw(void *data) {
+	/* unpack the data */
+	struct tdraw_data *tdata = (struct tdraw_data*)data;
 
+	int id = tdata->id;
+	int total = tdata->total;
+	MANDLE_CONTROLS *cont = tdata->cont;
+	FBINFO *fb = thread_fb;
+
+
+	com current_pos;
+
+	int dimension = MIN(fb->vinfo.xres, fb->vinfo.yres);
+	int x_long = fb->vinfo.xres > fb->vinfo.yres;
+	int aspect_diff = ABS(MAX(fb->vinfo.xres, fb->vinfo.yres) - MIN(fb->vinfo.xres, fb->vinfo.yres));
+	
+	/* figure out xres start and limit */
+	int start = id * (fb->vinfo.xres / total);
+	int limit = start + fb->vinfo.xres / total;
+
+
+	int ppanx = 0;
+	int ppany = 0;
+
+	RGBT white;
+	white.r = 255;
+	white.g = 255;
+	white.b = 255;
+	white.t = 255;
+	PIXEL pix;
+	int px = 0;
+	int py = 0;
+	pix.x = &px;
+	pix.y = &py;
+	pix.colour = &white;
+
+	while(cont->is_running) {
+
+		//for(int i = 0; i < fb->vinfo.xres; i++) {
+		for(int i = start; i < limit; i++) {
+
+			/* translate (0,0) (xres,yres) into (-2,2i) (2,-2i) for x coordinate */
+			current_pos.r = ((i+ ppanx + -1 * (x_long ? aspect_diff/2.0 : 0)) * (4.0/ cont->zoom) / dimension) - (2.0/ cont->zoom) + cont->R;
+
+			for(int j = 0; j < fb->vinfo.yres; j++) {
+				/* translate (0,0) (xres,yres) into (-2,2i) (2,-2i) for y coordinate */
+				current_pos.i = ((j + ppany + -1 * (x_long ? 0 : aspect_diff/2.0 )) * (4.0/ cont->zoom) / dimension) - (2.0/ cont->zoom) + cont->I;
+
+				int result = itterate(&current_pos, cont->depth);
+
+				*pix.x = i;
+				*pix.y = j;
+				if(result >= 0) {
+					/* outside the set, choose a colour */
+					make_colour(result, cont->depth, &white);
+				} else {
+					/* inside the set, draw black */
+					white.r = 0;
+					white.g = 0;
+					white.b = 0;
+					white.t = 0;
+				}
+				draw(fb, &pix);
+			}
+		}
+
+		//printf("zoom: %f\n\rdepth: %d\n\rR: %1.5Lf\n\rI: %1.5Lf\n\r", cont->zoom, cont->depth, cont->R, cont->I);
+	}
+
+	return NULL;
+}
+
+/* draws multiple threads */
+void thread_display(MANDLE_CONTROLS *cont) {
+	/* start the frame buffer */
+	thread_fb = init();
+
+	int numCPU = sysconf(_SC_NPROCESSORS_ONLN);
+
+	/* store the thread data */
+	struct tdraw_data threads[numCPU];
+
+	/* start the threads */
+	for(int i = 0; i < numCPU; i++) {
+		threads[i].id = i;
+		threads[i].total = numCPU;
+		threads[i].cont = cont;
+		pthread_create(&threads[i].tid, NULL, tdraw, threads+i);
+	}
+	/* wait for the threads to end */
+	for(int i = 0; i < numCPU; i++) {
+		pthread_join(threads[i].tid, NULL);
+	}
+
+	/* free the frame buffer */
+	end(thread_fb);
+}
+
+/* draws using a single thread */
 void display(MANDLE_CONTROLS *cont) {
 	FBINFO *fb = init();
 	com current_pos;
 
-#ifndef MIN
-#define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
-#endif
-#ifndef MAX
-#define MAX(X,Y) ((X) < (Y) ? (Y) : (X))
-#endif
-#ifndef MIN
-#define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
-#endif
 	int dimension = MIN(fb->vinfo.xres, fb->vinfo.yres);
 	int x_long = fb->vinfo.xres > fb->vinfo.yres;
 	int aspect_diff = ABS(MAX(fb->vinfo.xres, fb->vinfo.yres) - MIN(fb->vinfo.xres, fb->vinfo.yres));
@@ -135,7 +231,8 @@ int main(int argc, char **argv) {
 	int child_pid = fork();
 	if(!child_pid) {
 		// child
-		display(cont);
+		thread_display(cont);
+		//display(cont);
 		return EXIT_SUCCESS;
 	}
 	// parent from here on out

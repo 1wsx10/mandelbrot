@@ -4,6 +4,7 @@ project (mandlebrot)
 #find_package(OpenGL REQUIRED)
 #find_package(GLUT REQUIRED)
 find_package(Curses REQUIRED)
+find_package (Threads REQUIRED)
 
 add_executable(draw
 	main.c
@@ -28,6 +29,7 @@ target_link_libraries(draw
 	#${GLUT_LIBRARIES}
 	#GLU
 	${CURSES_LIBRARIES}
+	${CMAKE_THREAD_LIBS_INIT}
 	m
 )
 
