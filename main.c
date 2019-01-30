@@ -11,19 +11,15 @@ void make_colour(int val, int depth, RGBT *ret) {
 	ret->b = (int)(255 * sin(val_tx * PI * 4.0/3));
 }
 
+
+
+
 FBINFO *thread_fb;
-struct tdraw_data {
-	pthread_t tid;
-	int id;
-	int total;
-	MANDLE_CONTROLS *cont;
-};
+
 void *tdraw(void *data) {
 	/* unpack the data */
 	struct tdraw_data *tdata = (struct tdraw_data*)data;
 
-	int id = tdata->id;
-	int total = tdata->total;
 	MANDLE_CONTROLS *cont = tdata->cont;
 	FBINFO *fb = thread_fb;
 
@@ -34,11 +30,6 @@ void *tdraw(void *data) {
 	int x_long = fb->vinfo.xres > fb->vinfo.yres;
 	int aspect_diff = ABS(MAX(fb->vinfo.xres, fb->vinfo.yres) - MIN(fb->vinfo.xres, fb->vinfo.yres));
 	
-	/* figure out xres start and limit */
-	int start = id * (fb->vinfo.xres / total);
-	int limit = start + fb->vinfo.xres / total;
-
-
 	int ppanx = 0;
 	int ppany = 0;
 
@@ -54,35 +45,82 @@ void *tdraw(void *data) {
 	pix.y = &py;
 	pix.colour = &white;
 
+	int start;
+	int limit;
+
+	// repeatedly draw frames
 	while(cont->is_running) {
 
-		//for(int i = 0; i < fb->vinfo.xres; i++) {
-		for(int i = start; i < limit; i++) {
+		// Set yourself as idle and signal to the main thread, when all threads are idle main will start
+		pthread_mutex_lock(&currently_idle_mutex);
+		currently_idle++;
+		pthread_cond_signal(&currently_idle_cond);
+		pthread_mutex_unlock(&currently_idle_mutex);
 
-			/* translate (0,0) (xres,yres) into (-2,2i) (2,-2i) for x coordinate */
-			current_pos.r = ((i+ ppanx + -1 * (x_long ? aspect_diff/2.0 : 0)) * (4.0/ cont->zoom) / dimension) - (2.0/ cont->zoom) + cont->R;
-
-			for(int j = 0; j < fb->vinfo.yres; j++) {
-				/* translate (0,0) (xres,yres) into (-2,2i) (2,-2i) for y coordinate */
-				current_pos.i = ((j + ppany + -1 * (x_long ? 0 : aspect_diff/2.0 )) * (4.0/ cont->zoom) / dimension) - (2.0/ cont->zoom) + cont->I;
-
-				int result = itterate(&current_pos, cont->depth);
-
-				*pix.x = i;
-				*pix.y = j;
-				if(result >= 0) {
-					/* outside the set, choose a colour */
-					make_colour(result, cont->depth, &white);
-				} else {
-					/* inside the set, draw black */
-					white.r = 0;
-					white.g = 0;
-					white.b = 0;
-					white.t = 0;
-				}
-				draw(fb, &pix);
-			}
+		// wait for work from main
+		pthread_mutex_lock(&work_ready_mutex);
+		while (!work_ready) {
+			pthread_cond_wait(&work_ready_cond , &work_ready_mutex);
 		}
+		pthread_mutex_unlock(&work_ready_mutex);
+
+		// draw lots of parts of a single frame
+		while(1) {
+
+			// take a job slot
+			pthread_mutex_lock(&work_done_mutex);
+			if(work_done < work_count) {
+				start = work_done * work_length;
+				limit = start + work_length;
+				work_done++;
+				pthread_mutex_unlock(&work_done_mutex);
+			} else {
+				// no work left, break out to go back to idle (waiting for next frame)
+				pthread_mutex_unlock(&work_done_mutex);
+				break;
+			}
+
+			// set yourself as working
+			pthread_mutex_lock(&currently_working_mutex);
+			currently_working++;
+			pthread_mutex_unlock(&currently_working_mutex);
+
+
+			// Do the work
+			for(int i = start; i < limit; i++) {
+
+				/* translate (0,0) (xres,yres) into (-2,2i) (2,-2i) for x coordinate */
+				current_pos.r = ((i+ ppanx + -1 * (x_long ? aspect_diff/2.0 : 0)) * (4.0/ cont->zoom) / dimension) - (2.0/ cont->zoom) + cont->R;
+
+				for(int j = 0; j < fb->vinfo.yres; j++) {
+					/* translate (0,0) (xres,yres) into (-2,2i) (2,-2i) for y coordinate */
+					current_pos.i = ((j + ppany + -1 * (x_long ? 0 : aspect_diff/2.0 )) * (4.0/ cont->zoom) / dimension) - (2.0/ cont->zoom) + cont->I;
+
+					int result = itterate(&current_pos, cont->depth);
+
+					*pix.x = i;
+					*pix.y = j;
+					if(result >= 0) {
+						/* outside the set, choose a colour */
+						make_colour(result, cont->depth, &white);
+					} else {
+						/* inside the set, draw black */
+						white.r = 0;
+						white.g = 0;
+						white.b = 0;
+						white.t = 0;
+					}
+					draw(fb, &pix);
+				}
+			}
+
+			// mark yourself as finished working
+			pthread_mutex_lock(&currently_working_mutex);
+			currently_working--;
+			pthread_cond_signal(&currently_working_cond);
+			pthread_mutex_unlock(&currently_working_mutex);
+		}
+
 
 		//printf("zoom: %f\n\rdepth: %d\n\rR: %1.5Lf\n\rI: %1.5Lf\n\r", cont->zoom, cont->depth, cont->R, cont->I);
 	}
@@ -94,19 +132,53 @@ void *tdraw(void *data) {
 void thread_display(MANDLE_CONTROLS *cont) {
 	/* start the frame buffer */
 	thread_fb = init();
+	long int current_frame = 0;
 
 	int numCPU = sysconf(_SC_NPROCESSORS_ONLN);
 
 	/* store the thread data */
 	struct tdraw_data threads[numCPU];
 
+	int splits = 64;
+
 	/* start the threads */
 	for(int i = 0; i < numCPU; i++) {
-		threads[i].id = i;
-		threads[i].total = numCPU;
 		threads[i].cont = cont;
 		pthread_create(&threads[i].tid, NULL, tdraw, threads+i);
 	}
+
+	while (cont->is_running) {
+		// wait until all are idle
+		pthread_mutex_lock(&currently_idle_mutex);
+		while(currently_idle < numCPU) {
+			pthread_cond_wait(&currently_idle_cond, &currently_idle_mutex);
+		}
+		pthread_mutex_unlock(&currently_idle_mutex);
+
+		// TODO: remove this busy wait by using pthread cond signal (turning control process into a thread) or something
+		while(1) {
+			sleep(0.1);
+			if(cont->current_frame > current_frame) {
+				// invalid data, reset
+				current_frame = cont->current_frame;
+				break;
+			}
+		}
+
+		// set all work ready
+		// no threads are running currently, its safe to just modify this
+		work_ready = 1;
+		work_done = 0;
+		work_count = splits;
+		work_length = thread_fb->vinfo.xres / splits;
+
+		pthread_cond_broadcast(&work_ready_cond);
+
+		// set it to work
+		// increment work_done
+	}
+
+
 	/* wait for the threads to end */
 	for(int i = 0; i < numCPU; i++) {
 		pthread_join(threads[i].tid, NULL);
@@ -221,6 +293,7 @@ int main(int argc, char **argv) {
 	
 // TODO: replace all controls ptrs for ones in the struct
 
+	cont->current_frame = 0;
 	cont->is_running = 1;
 	cont->depth = 50;
 	cont->zoom = 1;
@@ -261,33 +334,41 @@ int main(int argc, char **argv) {
 			case KEY_UP:
 			case (int)'w':
 				cont->I -= 1/ cont->zoom;
+				cont->current_frame++;
 				break;
 			case KEY_DOWN:
 			case (int)'s':
 				cont->I += 1/ cont->zoom;
+				cont->current_frame++;
 				break;
 			case KEY_RIGHT:
 			case (int)'d':
 				cont->R += 1/ cont->zoom;
+				cont->current_frame++;
 				break;
 			case KEY_LEFT:
 			case (int)'a':
 				cont->R -= 1/ cont->zoom;
+				cont->current_frame++;
 				break;
 
 			case (int)'p':
 				cont->depth *= 1.1f;
+				cont->current_frame++;
 				break;
 			case (int)'o':
 				cont->depth /= 1.1f;
+				cont->current_frame++;
 				break;
 
 
 			case (int)'+':
 				cont->zoom *= 1.5f;
+				cont->current_frame++;
 				break;
 			case (int)'-':
 				cont->zoom /= 1.5f;
+				cont->current_frame++;
 				break;
 
 
