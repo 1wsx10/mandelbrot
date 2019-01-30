@@ -16,6 +16,7 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <pthread.h>
+#include <assert.h>
 
 #include <curses.h>
 
@@ -28,9 +29,24 @@ typedef struct mandle_controls {
 	long double I;
 } MANDLE_CONTROLS;
 
+#define MIN_JOB_SIZE 256
+#define T_WORKING (char)0
+#define T_LOOKING (char)1
+#define T_IDLE (char)2
+#define T_CHECKED (char)3
+#define T_UNCHECKED (char)4
 struct tdraw_data {
 	pthread_t tid;
+	int idx;
+	int num_threads;
 	MANDLE_CONTROLS *cont;
+	pthread_mutex_t state_mutex;
+	char state;
+	pthread_mutex_t bounds_mutex;
+	int TLx;
+	int TLy;
+	int BRx;
+	int BRy;
 };
 
 //threads:
@@ -52,12 +68,6 @@ int currently_idle;
 pthread_mutex_t work_ready_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t work_ready_cond = PTHREAD_COND_INITIALIZER;
 char work_ready;
-
-/* protects the work_done value */
-pthread_mutex_t work_done_mutex = PTHREAD_MUTEX_INITIALIZER;
-int work_done;
-int work_length;
-int work_count;
 
 pthread_cond_t  currently_working_cond = PTHREAD_COND_INITIALIZER;
 pthread_mutex_t currently_working_mutex= PTHREAD_MUTEX_INITIALIZER;
