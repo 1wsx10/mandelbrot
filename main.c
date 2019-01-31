@@ -540,6 +540,9 @@ int main(int argc, char **argv) {
 				cont->current_frame++;
 				break;
 
+			case (int)'r':
+				cont->current_frame++;
+				break;
 
 			case (int)'+':
 				cont->zoom *= 1.5f;
