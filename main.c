@@ -4,11 +4,61 @@
 #ifndef PI
 #define PI 3.14159f
 #endif
-void make_colour(int val, int depth, RGBT *ret) {
-	double val_tx = (int)(val * PI + PI/4);
-	ret->r = (int)(255 * sin(val_tx));
-	ret->g = (int)(255 * sin(val_tx * PI * 2.0/3));
-	ret->b = (int)(255 * sin(val_tx * PI * 4.0/3));
+void make_colour(double val, RGBT *ret) {
+#define RAINBOW
+#ifdef BRIGHT_ORANGE_DARK_PURPLE
+	double val_tx = val * 2 * PI * 0.02;
+	ret->r = (int)(127 * (cos(val_tx/2) + 1) / 2) + 128;
+	ret->g = (int)(127 * (sin(val_tx / 2 + PI /3) + 1.5 - cos(val_tx + PI / 3)) / 3.5) + 64;
+	ret->b = (int)(63 * (sin(val_tx/2) - cos(val_tx) + 1) / 3) + 64;
+	ret->t = 0;
+#endif
+#ifdef FLORAL
+	double val_tx = val * 2 * PI * 0.02;
+	ret->r = (int)(127 * (sin(val_tx) + 1) / 2) + 128;
+	ret->g = (int)(63 * (sin(val_tx * 2 + PI * 2.0/3) + 1) / 2) + 64;
+	ret->b = (int)(63 * (sin(val_tx + PI * 2.0/3) + 2 + sin(val_tx + PI * 2.0/3)) / 2) + 64;
+	//ret->b = (int)(0 * (sin(val_tx + PI * 4.0/3) + 1) / 2);
+	ret->t = 0;
+#endif
+#ifdef RAINBOW
+	double val_tx = val * 2 * PI * 0.01;
+	ret->r = (int)(255 * (sin(val_tx) + 1) / 2);
+	ret->g = (int)(255 * (sin(val_tx + PI * 2.0/3) + 1) / 2);
+	ret->b = (int)(255 * (sin(val_tx + PI * 4.0/3) + 1) / 2);
+	ret->t = 0;
+#endif
+}
+
+void make_smooth_colour(int val, RGBT *ret, com *z) {
+	double log_zn = log(z->r * z->r + z->i * z->i) / 2;
+	//double log_zn = log(sqrt(z->r * z->r - z->i * z->i));
+	double nu = log2(log_zn);
+	double newval = val + 1 - nu;
+	newval = val + 5 - log(log(sqrt(z->r * z->r + z->i * z->i))) / log(2);
+
+	RGBT c1;
+	RGBT c2;
+	make_colour((int)newval, &c1);
+	make_colour((int)newval + 1, &c2);
+
+
+	
+	c1.r = 255;
+	c1.g = 0;
+	c1.b = 0;
+	c2.r = 0;
+	c2.g = 0;
+	c2.b = 0;
+	
+
+	ret->r = (int)(255 * cos((newval - (int)newval) * 2 * PI));
+	ret->g = 0;
+	ret->b = 0;
+	ret->t = 0;
+	//interp_RGBT(&c1, &c2, newval - (int)newval, ret);
+	//make_colour((int)newval, ret);
+	make_colour(newval, ret);
 }
 
 
@@ -38,17 +88,17 @@ void *tdraw(void *data) {
 	int ppanx = 0;
 	int ppany = 0;
 
-	RGBT white;
-	white.r = 255;
-	white.g = 255;
-	white.b = 255;
-	white.t = 255;
+	RGBT colour;
+	colour.r = 255;
+	colour.g = 255;
+	colour.b = 255;
+	colour.t = 255;
 	PIXEL pix;
 	int px = 0;
 	int py = 0;
 	pix.x = &px;
 	pix.y = &py;
-	pix.colour = &white;
+	pix.colour = &colour;
 
 	// repeatedly draw frames
 	while(cont->is_running) {
@@ -207,19 +257,21 @@ void *tdraw(void *data) {
 					/* translate (0,0) (xres,yres) into (-2,2i) (2,-2i) for y coordinate */
 					current_pos.i = ((j + ppany + -1 * (x_long ? 0 : aspect_diff/2.0 )) * (4.0/ cont->zoom) / dimension) - (2.0/ cont->zoom) + cont->I;
 
-					int result = itterate(&current_pos, cont->depth);
+					com z_out;
+					int result = itterate(&current_pos, cont->depth, &z_out);
 
 					*pix.x = i;
 					*pix.y = j;
 					if(result >= 0) {
 						/* outside the set, choose a colour */
-						make_colour(result, cont->depth, &white);
+						make_smooth_colour(result, &colour, &z_out);
+						//make_colour(result, &colour);
 					} else {
 						/* inside the set, draw black */
-						white.r = 0;
-						white.g = 0;
-						white.b = 0;
-						white.t = 0;
+						colour.r = 0;
+						colour.g = 0;
+						colour.b = 0;
+						colour.t = 0;
 					}
 					draw(fb, &pix);
 				}
@@ -366,17 +418,17 @@ void display(MANDLE_CONTROLS *cont) {
 	int ppany = 0;
 
 
-	RGBT white;
-	white.r = 255;
-	white.g = 255;
-	white.b = 255;
-	white.t = 255;
+	RGBT colour;
+	colour.r = 255;
+	colour.g = 255;
+	colour.b = 255;
+	colour.t = 255;
 	PIXEL pix;
 	int px = 0;
 	int py = 0;
 	pix.x = &px;
 	pix.y = &py;
-	pix.colour = &white;
+	pix.colour = &colour;
 
 	while(cont->is_running) {
 
@@ -389,19 +441,21 @@ void display(MANDLE_CONTROLS *cont) {
 				/* translate (0,0) (xres,yres) into (-2,2i) (2,-2i) for y coordinate */
 				current_pos.i = ((j + ppany + -1 * (x_long ? 0 : aspect_diff/2.0 )) * (4.0/ cont->zoom) / dimension) - (2.0/ cont->zoom) + cont->I;
 
-				int result = itterate(&current_pos, cont->depth);
+				com z_out;
+				int result = itterate(&current_pos, cont->depth, &z_out);
 
 				*pix.x = i;
 				*pix.y = j;
 				if(result >= 0) {
 					/* outside the set, choose a colour */
-					make_colour(result, cont->depth, &white);
+					make_smooth_colour(result, &colour, &z_out);
+					//make_colour(result, &colour);
 				} else {
 					/* inside the set, draw black */
-					white.r = 0;
-					white.g = 0;
-					white.b = 0;
-					white.t = 0;
+					colour.r = 0;
+					colour.g = 0;
+					colour.b = 0;
+					colour.t = 0;
 				}
 				draw(fb, &pix);
 			}
