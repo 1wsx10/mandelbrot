@@ -66,7 +66,9 @@ int currently_working;
 /**
  * makes a RGBT value out of a number (0-255)
  */
-void make_colour(int val, int depth, RGBT *ret);
+void make_colour(double val, RGBT *ret);
+
+void make_smooth_colour(int val, RGBT *ret, com *z);
 
 #ifndef PI
 #define PI 3.14159f
@@ -78,8 +80,8 @@ void make_colour(int val, int depth, RGBT *ret);
 #ifndef MAX
 #define MAX(X,Y) ((X) < (Y) ? (Y) : (X))
 #endif
-#ifndef MIN
-#define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
+#ifndef ABS
+#define ABS(X) ((X) < 0 ? -1 * (X) : (X))
 #endif
 
 //entrypoint, init and start opengl
