@@ -64,6 +64,7 @@ void make_smooth_colour(int val, RGBT *ret, com *z) {
 
 
 
+MANDLE_CONTROLS *cont;
 FBINFO *thread_fb;
 
 void *tdraw(void *data) {
@@ -71,6 +72,7 @@ void *tdraw(void *data) {
 	struct tdraw_data *tdata = (struct tdraw_data*)data;
 
 	// array of all threads, we use this to find new jobs
+	// only want 1 thread looking for a job at a time
 	static pthread_mutex_t thread_array_mutex = PTHREAD_MUTEX_INITIALIZER;
 	struct tdraw_data *thread_array = tdata - tdata->idx;
 
@@ -113,11 +115,16 @@ void *tdraw(void *data) {
 		assert(!pthread_mutex_unlock(&currently_idle_mutex));
 
 		// wait for work from main
-		assert(!pthread_mutex_lock(&work_ready_mutex));
-		while (!work_ready) {
-			pthread_cond_wait(&work_ready_cond , &work_ready_mutex);
+		assert(!pthread_mutex_lock(&stay_idle_mutex));
+		while(stay_idle) {
+			pthread_cond_wait(&stay_idle_cond , &stay_idle_mutex);
 		}
-		assert(!pthread_mutex_unlock(&work_ready_mutex));
+		assert(!pthread_mutex_unlock(&stay_idle_mutex));
+
+		// we have just been told to go, reset frame_update
+		assert(!pthread_mutex_lock(&tdata->bounds_mutex));
+		tdata->frame_update = (char)0;
+		assert(!pthread_mutex_unlock(&tdata->bounds_mutex));
 
 		char start = (char)1;
 
@@ -125,10 +132,10 @@ void *tdraw(void *data) {
 		while(1) {
 
 			if(tdata->idx == 0 && start) {
-				// we got the first job, lets skip the init
+				// we got the first job, lets skip the job search
 				start = (char)0;
 			} else {
-				// not the very first job, time to look for one
+				// time to look for a job
 
 				// look for a job
 				assert(!pthread_mutex_lock(&tdata->state_mutex));
@@ -185,8 +192,14 @@ void *tdraw(void *data) {
 
 				if(greatest_idx == -1) {
 					// no jobs found, go idle waiting for next frame
+
+					// we don't have lock from greatest, no need to unlock that
 					assert(!pthread_mutex_unlock(&thread_array_mutex));
 					assert(!pthread_mutex_unlock(&tdata->bounds_mutex));
+					// tell ourselves and others that we need to go idle
+					assert(!pthread_mutex_lock(&stay_idle_mutex));
+					stay_idle = (char)1;
+					assert(!pthread_mutex_unlock(&stay_idle_mutex));
 					break;
 				}
 
@@ -245,6 +258,10 @@ void *tdraw(void *data) {
 			assert(!pthread_mutex_lock(&tdata->bounds_mutex));
 			// Do the work
 			for(int i = tdata->TLx; i < tdata->BRx; i++) {
+				if(tdata->frame_update) {
+					// reset, the frame has changed
+					break;
+				}
 				tdata->TLx = i;
 				int ystart = tdata->TLy;
 				int yend = tdata->BRy;
@@ -282,7 +299,7 @@ void *tdraw(void *data) {
 			// mark yourself as finished working
 			assert(!pthread_mutex_lock(&currently_working_mutex));
 			currently_working--;
-			pthread_cond_signal(&currently_working_cond);
+			pthread_cond_signal(&frame_update_cond);
 			assert(!pthread_mutex_unlock(&currently_working_mutex));
 		}
 
@@ -294,10 +311,9 @@ void *tdraw(void *data) {
 }
 
 /* draws multiple threads */
-void thread_display(MANDLE_CONTROLS *cont) {
+void *thread_display(void *asdf) {
 	/* start the frame buffer */
 	thread_fb = init();
-	long int current_frame = 0;
 
 	// set the number of threads to the number of cores
 	int numCPU = sysconf(_SC_NPROCESSORS_ONLN);
@@ -305,6 +321,8 @@ void thread_display(MANDLE_CONTROLS *cont) {
 	/* store the thread data */
 	/* this never gets written to during operation, so we don't need to mutex it */
 	struct tdraw_data threads[numCPU];
+
+	stay_idle = (char)1;
 
 	/* start the threads */
 	for(int i = 0; i < numCPU; i++) {
@@ -319,29 +337,23 @@ void thread_display(MANDLE_CONTROLS *cont) {
 	}
 
 	while (cont->is_running) {
-		// wait until all are idle
+
+		// frame update
 		assert(!pthread_mutex_lock(&currently_idle_mutex));
+		if(currently_idle > 0) {
+			// notify all threads of frame update
+			for(int i = 0; i < numCPU; i++) {
+				assert(!pthread_mutex_lock(&threads[i].bounds_mutex));
+				threads[i].frame_update = (char)1;
+				assert(!pthread_mutex_unlock(&threads[i].bounds_mutex));
+			}
+		}
+
+		// wait until all are idle
 		while(currently_idle < numCPU) {
 			pthread_cond_wait(&currently_idle_cond, &currently_idle_mutex);
 		}
 		assert(!pthread_mutex_unlock(&currently_idle_mutex));
-
-		// wait for the desired image to change
-		// TODO: remove this busy wait by using pthread cond signal (turning control process into a thread) or something
-		while(1) {
-			sleep(0.1);
-			if(cont->current_frame > current_frame) {
-				// invalid data, reset
-				current_frame = cont->current_frame;
-				break;
-			}
-		}
-
-		// set all work ready
-		// no threads are running currently, its safe to just modify this
-		assert(!pthread_mutex_lock(&work_ready_mutex));
-		work_ready = 1;
-		assert(!pthread_mutex_unlock(&work_ready_mutex));
 
 		/* start the first thread with the whole FB, the others will take some work from them */
 		assert(!pthread_mutex_lock(&threads[0].bounds_mutex));
@@ -352,7 +364,26 @@ void thread_display(MANDLE_CONTROLS *cont) {
 		assert(!pthread_mutex_unlock(&threads[0].bounds_mutex));
 
 		// set all threads working
-		pthread_cond_broadcast(&work_ready_cond);
+		assert(!pthread_mutex_lock(&stay_idle_mutex));
+		stay_idle = (char)0;
+		pthread_cond_broadcast(&stay_idle_cond);
+		assert(!pthread_mutex_unlock(&stay_idle_mutex));
+
+
+		// wait for the desired image to change
+		assert(!pthread_mutex_lock(&frame_update_mutex));
+		while(!frame_update) {
+			pthread_cond_wait(&frame_update_cond , &frame_update_mutex);
+		}
+		frame_update = (char)0;
+
+		// reset stay_idle before we release the lock, so that threads can't interrupt before being told to idle
+		assert(!pthread_mutex_lock(&stay_idle_mutex));
+		stay_idle = (char)1;
+		assert(!pthread_mutex_unlock(&stay_idle_mutex));
+
+		assert(!pthread_mutex_unlock(&frame_update_mutex));
+
 	}
 
 
@@ -363,6 +394,96 @@ void thread_display(MANDLE_CONTROLS *cont) {
 
 	/* free the frame buffer */
 	end(thread_fb);
+	return NULL;
+}
+
+int main(int argc, char **argv) {
+	cont = mmap(NULL, sizeof(*cont), PROT_READ|PROT_WRITE, MAP_SHARED|MAP_ANONYMOUS, -1, 0);
+	
+// TODO: replace all controls ptrs for ones in the struct
+
+	cont->is_running = 1;
+	cont->depth = 50;
+	cont->zoom = 1;
+	cont->R = 0;
+	cont->I = 0;
+
+	frame_update = (char)1;
+	pthread_t display_id;
+	pthread_create(&display_id, NULL, thread_display, cont);
+
+
+	// init ncurses and choose settings
+	initscr();
+	timeout(-1);
+	// stdscr: the default window
+	// 0: block until input is available, rather than returning ERR on no input
+	cbreak();
+	// makes input return immediately on every char, rather than buffering a line
+	noecho();
+	// stops characters printing
+	nodelay(stdscr, 0);
+	// hide the cursor
+	curs_set(0);
+
+	while(cont->is_running) {
+
+		int key = getch();
+		//printf("KEY: %c\t #: %d\n\r", (char)key, key);
+
+
+		switch(key) {
+			case KEY_UP:
+			case (int)'w':
+				cont->I -= 1/ cont->zoom;
+				break;
+			case KEY_DOWN:
+			case (int)'s':
+				cont->I += 1/ cont->zoom;
+				break;
+			case KEY_RIGHT:
+			case (int)'d':
+				cont->R += 1/ cont->zoom;
+				break;
+			case KEY_LEFT:
+			case (int)'a':
+				cont->R -= 1/ cont->zoom;
+				break;
+
+			case (int)'p':
+				cont->depth *= 1.1f;
+				break;
+			case (int)'o':
+				cont->depth /= 1.1f;
+				break;
+
+			case (int)'+':
+				cont->zoom *= 1.5f;
+				break;
+			case (int)'-':
+				cont->zoom /= 1.5f;
+				break;
+
+
+
+			case KEY_EXIT:
+				cont->is_running = 0;
+				break;
+		}
+
+		assert(!pthread_mutex_lock(&frame_update_mutex));
+		frame_update = (char)1;
+		pthread_cond_signal(&frame_update_cond);
+		assert(!pthread_mutex_unlock(&frame_update_mutex));
+	}
+
+	//ncurses
+	endwin();
+
+	// undo memory map
+	munmap(cont, sizeof(*cont));
+	return EXIT_SUCCESS;
+
 }
 
 /* draws using a single thread */
@@ -465,108 +586,5 @@ void display(MANDLE_CONTROLS *cont) {
 	}
 	
 	end(fb);
-}
-
-int main(int argc, char **argv) {
-	MANDLE_CONTROLS *cont = mmap(NULL, sizeof(*cont), PROT_READ|PROT_WRITE, MAP_SHARED|MAP_ANONYMOUS, -1, 0);
-	
-// TODO: replace all controls ptrs for ones in the struct
-
-	cont->current_frame = 0;
-	cont->is_running = 1;
-	cont->depth = 50;
-	cont->zoom = 1;
-	cont->R = 0;
-	cont->I = 0;
-
-
-	int child_pid = fork();
-	if(!child_pid) {
-		// child
-		thread_display(cont);
-		//display(cont);
-		return EXIT_SUCCESS;
-	}
-	// parent from here on out
-
-
-	// init ncurses and choose settings
-	initscr();
-	timeout(-1);
-	// stdscr: the default window
-	// 0: block until input is available, rather than returning ERR on no input
-	cbreak();
-	// makes input return immediately on every char, rather than buffering a line
-	noecho();
-	// stops characters printing
-	nodelay(stdscr, 0);
-	// hide the cursor
-	curs_set(0);
-
-	while(cont->is_running) {
-
-		int key = getch();
-		//printf("KEY: %c\t #: %d\n\r", (char)key, key);
-
-
-		switch(key) {
-			case KEY_UP:
-			case (int)'w':
-				cont->I -= 1/ cont->zoom;
-				cont->current_frame++;
-				break;
-			case KEY_DOWN:
-			case (int)'s':
-				cont->I += 1/ cont->zoom;
-				cont->current_frame++;
-				break;
-			case KEY_RIGHT:
-			case (int)'d':
-				cont->R += 1/ cont->zoom;
-				cont->current_frame++;
-				break;
-			case KEY_LEFT:
-			case (int)'a':
-				cont->R -= 1/ cont->zoom;
-				cont->current_frame++;
-				break;
-
-			case (int)'p':
-				cont->depth *= 1.1f;
-				cont->current_frame++;
-				break;
-			case (int)'o':
-				cont->depth /= 1.1f;
-				cont->current_frame++;
-				break;
-
-			case (int)'r':
-				cont->current_frame++;
-				break;
-
-			case (int)'+':
-				cont->zoom *= 1.5f;
-				cont->current_frame++;
-				break;
-			case (int)'-':
-				cont->zoom /= 1.5f;
-				cont->current_frame++;
-				break;
-
-
-
-			case KEY_EXIT:
-				cont->is_running = 0;
-				break;
-		}
-	}
-
-	//ncurses
-	endwin();
-
-	// undo memory map
-	munmap(cont, sizeof(*cont));
-	return EXIT_SUCCESS;
-
 }
 

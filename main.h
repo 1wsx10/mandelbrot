@@ -21,7 +21,6 @@
 #include <curses.h>
 
 typedef struct mandle_controls {
-	long int current_frame;
 	char is_running;
 	int depth;
 	long double zoom;
@@ -33,8 +32,6 @@ typedef struct mandle_controls {
 #define T_WORKING (char)0
 #define T_LOOKING (char)1
 #define T_IDLE (char)2
-#define T_CHECKED (char)3
-#define T_UNCHECKED (char)4
 struct tdraw_data {
 	pthread_t tid;
 	int idx;
@@ -43,11 +40,15 @@ struct tdraw_data {
 	pthread_mutex_t state_mutex;
 	char state;
 	pthread_mutex_t bounds_mutex;
+	// tells each thread to interrupt mid-draw
+	char frame_update;
 	int TLx;
 	int TLy;
 	int BRx;
 	int BRy;
 };
+
+void display(MANDLE_CONTROLS *cont);
 
 //threads:
 // 1: mark as idle
@@ -65,11 +66,15 @@ pthread_cond_t  currently_idle_cond  = PTHREAD_COND_INITIALIZER;
 int currently_idle;
 
 /* signals to the thread they can take a job */
-pthread_mutex_t work_ready_mutex = PTHREAD_MUTEX_INITIALIZER;
-pthread_cond_t work_ready_cond = PTHREAD_COND_INITIALIZER;
-char work_ready;
+pthread_mutex_t stay_idle_mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t stay_idle_cond = PTHREAD_COND_INITIALIZER;
+char stay_idle;
 
-pthread_cond_t  currently_working_cond = PTHREAD_COND_INITIALIZER;
+// tells the drawer controller to interrupt all threads and restart
+pthread_mutex_t frame_update_mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t frame_update_cond = PTHREAD_COND_INITIALIZER;
+char frame_update;
+
 pthread_mutex_t currently_working_mutex= PTHREAD_MUTEX_INITIALIZER;
 int currently_working;
 
