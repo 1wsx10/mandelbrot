@@ -67,15 +67,11 @@ void make_smooth_colour(int val, RGBT *ret, com *z) {
 MANDLE_CONTROLS *cont;
 FBINFO *thread_fb;
 
-pthread_mutex_t logfile_mutex = PTHREAD_MUTEX_INITIALIZER;
-void log_mutex_info(int id, char *fname, char *mutex_name, char is_getting_file) {
-	char filename[] = "mutex_logfile";
-	if((long int)fname == -1) {
-		fname = (char*)&filename;
-	}
+void log_mutex_info(int id, char *mutex_name, char is_getting_file) {
+#ifdef LOG_MUTEXES
 
 	assert(!pthread_mutex_lock(&logfile_mutex));
-	int fd = open(fname, O_WRONLY|O_APPEND);
+	int fd = open(MUTEX_FNAME, O_WRONLY|O_APPEND);
 
 	if(is_getting_file) {
 		// getting mutex
@@ -88,6 +84,7 @@ void log_mutex_info(int id, char *fname, char *mutex_name, char is_getting_file)
 
 	close(fd);
 	assert(!pthread_mutex_unlock(&logfile_mutex));
+#endif
 }
 
 void *tdraw(void *data) {
@@ -129,33 +126,33 @@ void *tdraw(void *data) {
 	while(cont->is_running) {
 
 		// Set yourself as idle and signal to the main thread, when all threads are idle main will start
-		log_mutex_info(tdata->idx, (char*)-1, "my_state", (char)1);
+		log_mutex_info(tdata->idx, "my_state", (char)1);
 		assert(!pthread_mutex_lock(&tdata->state_mutex));
 		tdata->state = T_IDLE;
 		assert(!pthread_mutex_unlock(&tdata->state_mutex));
-		log_mutex_info(tdata->idx, (char*)-1, "my_state", (char)0);
-		log_mutex_info(tdata->idx, (char*)-1, "currently_idle", (char)1);
+		log_mutex_info(tdata->idx, "my_state", (char)0);
+		log_mutex_info(tdata->idx, "currently_idle", (char)1);
 		assert(!pthread_mutex_lock(&currently_idle_mutex));
 		currently_idle++;
 		pthread_cond_signal(&currently_idle_cond);
-		log_mutex_info(tdata->idx, (char*)-1, "currently_idle", (char)0);
+		log_mutex_info(tdata->idx, "currently_idle", (char)0);
 		assert(!pthread_mutex_unlock(&currently_idle_mutex));
 
 		// wait for work from main
-		log_mutex_info(tdata->idx, (char*)-1, "stay_idle", (char)1);
+		log_mutex_info(tdata->idx, "stay_idle", (char)1);
 		assert(!pthread_mutex_lock(&stay_idle_mutex));
 		while(stay_idle) {
 			pthread_cond_wait(&stay_idle_cond , &stay_idle_mutex);
 		}
 		assert(!pthread_mutex_unlock(&stay_idle_mutex));
-		log_mutex_info(tdata->idx, (char*)-1, "stay_idle", (char)1);
+		log_mutex_info(tdata->idx, "stay_idle", (char)1);
 
 		// we have just been told to go, reset frame_update
-		log_mutex_info(tdata->idx, (char*)-1, "my_bounds", (char)1);
+		log_mutex_info(tdata->idx, "my_bounds", (char)1);
 		assert(!pthread_mutex_lock(&tdata->bounds_mutex));
 		tdata->frame_update = (char)0;
 		assert(!pthread_mutex_unlock(&tdata->bounds_mutex));
-		log_mutex_info(tdata->idx, (char*)-1, "my_bounds", (char)0);
+		log_mutex_info(tdata->idx, "my_bounds", (char)0);
 
 		char start = (char)1;
 
@@ -170,13 +167,13 @@ void *tdraw(void *data) {
 
 				// look for a job
 				//log locking
-				log_mutex_info(tdata->idx, (char*)-1, "my_state", (char)1);
+				log_mutex_info(tdata->idx, "my_state", (char)1);
 
 				assert(!pthread_mutex_lock(&tdata->state_mutex));
 				tdata->state = T_LOOKING;
 				assert(!pthread_mutex_unlock(&tdata->state_mutex));
 				//log unlocking
-				log_mutex_info(tdata->idx, (char*)-1, "my_state", (char)0);
+				log_mutex_info(tdata->idx, "my_state", (char)0);
 
 				// setup data for checking jobs
 				int greatest_idx = -1;
@@ -184,13 +181,13 @@ void *tdraw(void *data) {
 
 				// locking array mutex. no other threads can look for a job while i am
 				//log locking
-				log_mutex_info(tdata->idx, (char*)-1, "thread_array", (char)1);
+				log_mutex_info(tdata->idx, "thread_array", (char)1);
 
 				assert(!pthread_mutex_lock(&thread_array_mutex));
 
 				// locking my bounds, nothing should be using my bounds
 				//log locking
-				log_mutex_info(tdata->idx, (char*)-1, "my_bounds", (char)1);
+				log_mutex_info(tdata->idx, "my_bounds", (char)1);
 
 				assert(!pthread_mutex_lock(&tdata->bounds_mutex));
 				for(int i = 0; i < tdata->num_threads; i++) {
@@ -202,14 +199,14 @@ void *tdraw(void *data) {
 					//log locking
 					char mutexname[20];
 					snprintf(mutexname, 20, "thr_arr[%2d].state", i);
-					log_mutex_info(tdata->idx, (char*)-1, mutexname, (char)1);
+					log_mutex_info(tdata->idx, mutexname, (char)1);
 
 					assert(!pthread_mutex_lock(&thread_array[i].state_mutex));
 					char curr_thread_state = thread_array[i].state;
 					assert(!pthread_mutex_unlock(&thread_array[i].state_mutex));
 
 					//log unlocking
-					log_mutex_info(tdata->idx, (char*)-1, mutexname, (char)0);
+					log_mutex_info(tdata->idx, mutexname, (char)0);
 
 					// don't want idle or looking
 					if((curr_thread_state & (T_IDLE|T_LOOKING)) != (char)0) continue;
@@ -221,7 +218,7 @@ void *tdraw(void *data) {
 
 						// log locking
 						snprintf(mutexname, 20, "thr_arr[%2d].bounds", i);
-						log_mutex_info(tdata->idx, (char*)-1, mutexname, (char)1);
+						log_mutex_info(tdata->idx, mutexname, (char)1);
 
 						// lock and hold onto the mutex incase its the greatest
 						assert(!pthread_mutex_lock(&thread_array[i].bounds_mutex));
@@ -239,7 +236,7 @@ void *tdraw(void *data) {
 
 								// log unlocking
 								snprintf(mutexname, 20, "thr_arr[%2d].bounds", greatest_idx);
-								log_mutex_info(tdata->idx, (char*)-1, mutexname, (char)0);
+								log_mutex_info(tdata->idx, mutexname, (char)0);
 							}
 							greatest_idx = i;
 							greatest_size = size;
@@ -249,7 +246,7 @@ void *tdraw(void *data) {
 
 							// log unlocking
 							snprintf(mutexname, 20, "thr_arr[%2d].bounds", i);
-							log_mutex_info(tdata->idx, (char*)-1, mutexname, (char)0);
+							log_mutex_info(tdata->idx, mutexname, (char)0);
 						}
 					}
 				}
@@ -259,21 +256,21 @@ void *tdraw(void *data) {
 
 					// we don't have lock from greatest, no need to unlock that
 					//log unlocking
-					log_mutex_info(tdata->idx, (char*)-1, "thread_array", (char)0);
+					log_mutex_info(tdata->idx, "thread_array", (char)0);
 
 					assert(!pthread_mutex_unlock(&thread_array_mutex));
 					//log unlocking
-					log_mutex_info(tdata->idx, (char*)-1, "my_bounds", (char)0);
+					log_mutex_info(tdata->idx, "my_bounds", (char)0);
 
 					assert(!pthread_mutex_unlock(&tdata->bounds_mutex));
 					// tell ourselves and others that we need to go idle
 					//log locking
-					log_mutex_info(tdata->idx, (char*)-1, "stay_idle", (char)1);
+					log_mutex_info(tdata->idx, "stay_idle", (char)1);
 					assert(!pthread_mutex_lock(&stay_idle_mutex));
 					stay_idle = (char)1;
 					assert(!pthread_mutex_unlock(&stay_idle_mutex));
 					//log unlocking
-					log_mutex_info(tdata->idx, (char*)-1, "stay_idle", (char)0);
+					log_mutex_info(tdata->idx, "stay_idle", (char)0);
 					break;
 				}
 
@@ -285,7 +282,7 @@ void *tdraw(void *data) {
 
 				// unlock array mutex, others can start looking for a job now
 				//log unlocking
-				log_mutex_info(tdata->idx, (char*)-1, "thread_array", (char)0);
+				log_mutex_info(tdata->idx, "thread_array", (char)0);
 
 				assert(!pthread_mutex_unlock(&thread_array_mutex));
 
@@ -314,7 +311,7 @@ void *tdraw(void *data) {
 				// done modifying my bounds
 				// unlocking my bounds
 				//log unlocking
-				log_mutex_info(tdata->idx, (char*)-1, "my_bounds", (char)0);
+				log_mutex_info(tdata->idx, "my_bounds", (char)0);
 
 				assert(!pthread_mutex_unlock(&tdata->bounds_mutex));
 
@@ -325,24 +322,24 @@ void *tdraw(void *data) {
 				assert(!pthread_mutex_unlock(&thread_array[greatest_idx].bounds_mutex));
 				char mutexname[20];
 				snprintf(mutexname, 20, "thr_arr[%2d].bounds", greatest_idx);
-				log_mutex_info(tdata->idx, (char*)-1, mutexname, (char)0);
+				log_mutex_info(tdata->idx, mutexname, (char)0);
 
 			}
 
 			// set yourself as working
-			log_mutex_info(tdata->idx, (char*)-1, "my_state", (char)1);
+			log_mutex_info(tdata->idx, "my_state", (char)1);
 			assert(!pthread_mutex_lock(&tdata->state_mutex));
 			tdata->state = T_WORKING;
 			assert(!pthread_mutex_unlock(&tdata->state_mutex));
-			log_mutex_info(tdata->idx, (char*)-1, "my_state", (char)0);
-			log_mutex_info(tdata->idx, (char*)-1, "currently_working", (char)1);
+			log_mutex_info(tdata->idx, "my_state", (char)0);
+			log_mutex_info(tdata->idx, "currently_working", (char)1);
 			assert(!pthread_mutex_lock(&currently_working_mutex));
 			currently_working++;
 			assert(!pthread_mutex_unlock(&currently_working_mutex));
-			log_mutex_info(tdata->idx, (char*)-1, "currently_working", (char)0);
+			log_mutex_info(tdata->idx, "currently_working", (char)0);
 
 
-			log_mutex_info(tdata->idx, (char*)-1, "my_bounds", (char)1);
+			log_mutex_info(tdata->idx, "my_bounds", (char)1);
 			assert(!pthread_mutex_lock(&tdata->bounds_mutex));
 			// Do the work
 			for(int i = tdata->TLx; i < tdata->BRx; i++) {
@@ -354,7 +351,7 @@ void *tdraw(void *data) {
 				int ystart = tdata->TLy;
 				int yend = tdata->BRy;
 				assert(!pthread_mutex_unlock(&tdata->bounds_mutex));
-				log_mutex_info(tdata->idx, (char*)-1, "my_bounds", (char)0);
+				log_mutex_info(tdata->idx, "my_bounds", (char)0);
 
 				/* translate (0,0) (xres,yres) into (-2,2i) (2,-2i) for x coordinate */
 				current_pos.r = ((i+ ppanx + -1 * (x_long ? aspect_diff/2.0 : 0)) * (4.0/ cont->zoom) / dimension) - (2.0/ cont->zoom) + cont->R;
@@ -381,19 +378,19 @@ void *tdraw(void *data) {
 					}
 					draw(fb, &pix);
 				}
-				log_mutex_info(tdata->idx, (char*)-1, "my_bounds", (char)1);
+				log_mutex_info(tdata->idx, "my_bounds", (char)1);
 				assert(!pthread_mutex_lock(&tdata->bounds_mutex));
 			}
 			assert(!pthread_mutex_unlock(&tdata->bounds_mutex));
-			log_mutex_info(tdata->idx, (char*)-1, "my_bounds", (char)0);
+			log_mutex_info(tdata->idx, "my_bounds", (char)0);
 
 			// mark yourself as finished working
-			log_mutex_info(tdata->idx, (char*)-1, "currently_working", (char)1);
+			log_mutex_info(tdata->idx, "currently_working", (char)1);
 			assert(!pthread_mutex_lock(&currently_working_mutex));
 			currently_working--;
 			pthread_cond_signal(&frame_update_cond);
 			assert(!pthread_mutex_unlock(&currently_working_mutex));
-			log_mutex_info(tdata->idx, (char*)-1, "currently_working", (char)0);
+			log_mutex_info(tdata->idx, "currently_working", (char)0);
 		}
 
 
@@ -494,14 +491,15 @@ int main(int argc, char **argv) {
 	cont = mmap(NULL, sizeof(*cont), PROT_READ|PROT_WRITE, MAP_SHARED|MAP_ANONYMOUS, -1, 0);
 
 
+#ifdef LOG_MUTEXES
 	assert(!pthread_mutex_lock(&logfile_mutex));
-	char fname[] = "mutex_logfile";
-	int fd = open(fname, O_WRONLY|O_APPEND);
+	int fd = open(MUTEX_FNAME, O_WRONLY|O_APPEND);
 
 	dprintf(fd, "starting logs\n");
 
 	close(fd);
 	assert(!pthread_mutex_unlock(&logfile_mutex));
+#endif
 
 	
 // TODO: replace all controls ptrs for ones in the struct

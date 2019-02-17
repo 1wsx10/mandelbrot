@@ -24,6 +24,9 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
+#define LOG_MUTEXES
+#define MUTEX_FNAME "mutex_logfile"
+
 typedef struct mandle_controls {
 	char is_running;
 	int depth;
@@ -63,6 +66,10 @@ void display(MANDLE_CONTROLS *cont);
 //	4: set as working
 //	== do the work ==
 //	5: set as finished
+
+#ifdef LOG_MUTEXES
+pthread_mutex_t logfile_mutex = PTHREAD_MUTEX_INITIALIZER;
+#endif
 
 /* signals to the controller that the thread is waiting */
 pthread_mutex_t currently_idle_mutex = PTHREAD_MUTEX_INITIALIZER;
