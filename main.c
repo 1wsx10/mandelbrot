@@ -71,18 +71,16 @@ void log_mutex_info(int id, char *mutex_name, char is_getting_file) {
 #ifdef LOG_MUTEXES
 
 	assert(!pthread_mutex_lock(&logfile_mutex));
-	int fd = open(MUTEX_FNAME, O_WRONLY|O_APPEND);
 
 	if(is_getting_file) {
 		// getting mutex
 		// dprintf for file descriptor
-		dprintf(fd, "%3d   locking %20s\n", id, mutex_name);
+		dprintf(logfile_fd, "%3d   locking %20s\n", id, mutex_name);
 	} else {
 		// releasing mutex
-		dprintf(fd, "%3d unlocking %20s\n", id, mutex_name);
+		dprintf(logfile_fd, "%3d unlocking %20s\n", id, mutex_name);
 	}
 
-	close(fd);
 	assert(!pthread_mutex_unlock(&logfile_mutex));
 #endif
 }
@@ -492,12 +490,13 @@ int main(int argc, char **argv) {
 
 
 #ifdef LOG_MUTEXES
+	remove(MUTEX_FNAME);
+
 	assert(!pthread_mutex_lock(&logfile_mutex));
-	int fd = open(MUTEX_FNAME, O_WRONLY|O_APPEND);
+	//                                       create a file with rw-r--r--
+	logfile_fd = open(MUTEX_FNAME, O_CREAT|O_WRONLY|O_APPEND, 0b110100100);
 
-	dprintf(fd, "starting logs\n");
-
-	close(fd);
+	dprintf(logfile_fd, "starting logs\n");
 	assert(!pthread_mutex_unlock(&logfile_mutex));
 #endif
 
@@ -578,6 +577,12 @@ int main(int argc, char **argv) {
 		pthread_cond_signal(&frame_update_cond);
 		assert(!pthread_mutex_unlock(&frame_update_mutex));
 	}
+
+#ifdef LOG_MUTEXES
+	assert(!pthread_mutex_lock(&logfile_mutex));
+	close(logfile_fd);
+	assert(!pthread_mutex_unlock(&logfile_mutex));
+#endif
 
 	//ncurses
 	endwin();

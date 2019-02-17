@@ -68,6 +68,7 @@ void display(MANDLE_CONTROLS *cont);
 //	5: set as finished
 
 #ifdef LOG_MUTEXES
+int logfile_fd;
 pthread_mutex_t logfile_mutex = PTHREAD_MUTEX_INITIALIZER;
 #endif
 
