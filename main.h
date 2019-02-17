@@ -16,11 +16,18 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <pthread.h>
+#include <assert.h>
 
 #include <curses.h>
 
+// for writing to a file
+#include <sys/stat.h>
+#include <fcntl.h>
+
+#define LOG_MUTEXES
+#define MUTEX_FNAME "mutex_logfile"
+
 typedef struct mandle_controls {
-	long int current_frame;
 	char is_running;
 	int depth;
 	long double zoom;
@@ -28,10 +35,27 @@ typedef struct mandle_controls {
 	long double I;
 } MANDLE_CONTROLS;
 
+#define MIN_JOB_SIZE 256
+#define T_WORKING (char)0
+#define T_LOOKING (char)1
+#define T_IDLE (char)2
 struct tdraw_data {
 	pthread_t tid;
+	int idx;
+	int num_threads;
 	MANDLE_CONTROLS *cont;
+	pthread_mutex_t state_mutex;
+	char state;
+	pthread_mutex_t bounds_mutex;
+	// tells each thread to interrupt mid-draw
+	char frame_update;
+	int TLx;
+	int TLy;
+	int BRx;
+	int BRy;
 };
+
+void display(MANDLE_CONTROLS *cont);
 
 //threads:
 // 1: mark as idle
@@ -43,23 +67,26 @@ struct tdraw_data {
 //	== do the work ==
 //	5: set as finished
 
+#ifdef LOG_MUTEXES
+int logfile_fd;
+pthread_mutex_t logfile_mutex = PTHREAD_MUTEX_INITIALIZER;
+#endif
+
 /* signals to the controller that the thread is waiting */
 pthread_mutex_t currently_idle_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t  currently_idle_cond  = PTHREAD_COND_INITIALIZER;
 int currently_idle;
 
 /* signals to the thread they can take a job */
-pthread_mutex_t work_ready_mutex = PTHREAD_MUTEX_INITIALIZER;
-pthread_cond_t work_ready_cond = PTHREAD_COND_INITIALIZER;
-char work_ready;
+pthread_mutex_t stay_idle_mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t stay_idle_cond = PTHREAD_COND_INITIALIZER;
+char stay_idle;
 
-/* protects the work_done value */
-pthread_mutex_t work_done_mutex = PTHREAD_MUTEX_INITIALIZER;
-int work_done;
-int work_length;
-int work_count;
+// tells the drawer controller to interrupt all threads and restart
+pthread_mutex_t frame_update_mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t frame_update_cond = PTHREAD_COND_INITIALIZER;
+char frame_update;
 
-pthread_cond_t  currently_working_cond = PTHREAD_COND_INITIALIZER;
 pthread_mutex_t currently_working_mutex= PTHREAD_MUTEX_INITIALIZER;
 int currently_working;
 
