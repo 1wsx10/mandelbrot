@@ -20,6 +20,10 @@
 
 #include <curses.h>
 
+// for writing to a file
+#include <sys/stat.h>
+#include <fcntl.h>
+
 typedef struct mandle_controls {
 	char is_running;
 	int depth;
