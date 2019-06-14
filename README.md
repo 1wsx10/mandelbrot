@@ -2,6 +2,8 @@
 a multithreaded mandelbrot renderer that draws to the linux framebuffer.
 you need to run it in a virtual terminal.
 
+I found out my framebuffer code segfaults with multi-monitor setups, you need to reboot with only one monitor.
+
 **building:**
 
     git clone --recurse-submodules https://github.com/1wsx10/mandelbrot
