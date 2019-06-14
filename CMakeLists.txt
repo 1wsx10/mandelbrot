@@ -1,5 +1,5 @@
 cmake_minimum_required (VERSION 2.6)
-project (mandlebrot)
+project (mandelbrot)
 
 #find_package(OpenGL REQUIRED)
 #find_package(GLUT REQUIRED)
@@ -12,7 +12,7 @@ add_executable(draw
 	vector.c
 	matrixd.c
 	complex.c
-	mandle.c
+	mandel.c
 	lib/write_screen/drawlib.c
 )
 

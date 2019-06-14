@@ -5,7 +5,7 @@
 #include "vector.h"
 #include "matrixd.h"
 #include "complex.h"
-#include "mandle.h"
+#include "mandel.h"
 
 #include "lib/write_screen/drawlib.h"
 
