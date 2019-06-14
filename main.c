@@ -5,7 +5,22 @@
 #define PI 3.14159f
 #endif
 void make_colour(double val, RGBT *ret) {
-#define RAINBOW
+#define RED_YELLOW_WHITE_YELLOW
+
+#ifdef RED_YELLOW_WHITE_YELLOW
+	double val_tx = val * 2 * PI * 0.02;
+	ret->r = (int)255;
+	ret->g = (int)255 * (sin(val_tx - (PI/2) + cos(val_tx - (PI/2))) + 1)/2;
+	ret->b = (int)255 * (-1 * cos(val_tx) + 1)/2;
+	ret->t = 0;
+#endif
+#ifdef RED_YELLOW_WHITE_PINK
+	double val_tx = val * 2 * PI * 0.02;
+	ret->r = (int)255;
+	ret->g = (int)255 * (sin(val_tx - (PI/2) + cos(val_tx - (PI/2))) + 1)/2;
+	ret->b = (int)255 * (-1 * sin(val_tx + cos(val_tx)) + 1)/2;
+	ret->t = 0;
+#endif
 #ifdef BRIGHT_ORANGE_DARK_PURPLE
 	double val_tx = val * 2 * PI * 0.02;
 	ret->r = (int)(127 * (cos(val_tx/2) + 1) / 2) + 128;

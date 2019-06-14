@@ -1,4 +1,4 @@
-#include "mandle.h"
+#include "mandel.h"
 
 
 /* function f(z) = z^2 + c */
